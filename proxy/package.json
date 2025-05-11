@@ -1,0 +1,9 @@
+{
+  "name": "app3",
+  "version": "1.0.0",
+  "description": "Third Node.js application with /foo endpoint",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  }
+} 

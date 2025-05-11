@@ -86,10 +86,27 @@ spec:
     spec:
       containers:
       - name: app3
-        image: docker.io/schramek/node-proxy:latest
+        image: docker.io/schramek/node-proxy:2
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
+        env:
+        - name: TARGET_HOSTNAME
+          value: app1.default.svc.cluster.local
+        - name: TARGET_PORT
+          value: "80"
+        - name: CHECK_URL
+          value: "/api/callback/success"
+        - name: X_ENV_KEY
+          value: x-kubernetes-namespace
+        - name: X_ENV_VALUE_JSON_PATH
+          value: jsonpath.key
+        - name: X_ENV_VALUE_TEST
+          value: test
+        - name: X_ENV_DEFAULT_VALUE
+          value: staging
+        - name: DEBUG
+          value: "true"
 ---
 apiVersion: v1
 kind: Service
@@ -125,69 +142,3 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: scanner
-spec:
-  selector:
-    app: scanner
-  ports:
-  - port: 3310
-    targetPort: 3310
-  type: ClusterIP
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: scanner
-  labels:
-    app: scanner
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: scanner
-  template:
-    metadata:
-      labels:
-        app: scanner
-    spec:
-      containers:
-      - name: scanner
-        image: "docker.io/schramek/clamav-scanner:5"
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 3310
-        volumeMounts:
-        - name: scanner-signature-updates
-          mountPath: /var/lib/clamav
-      volumes:
-      - name: scanner-signature-updates
-        persistentVolumeClaim:
-          claimName: scanner-signature-updates
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: scanner
-spec:
-  selector:
-    app: scanner
-  ports:
-  - port: 3310
-    targetPort: 3310
-  type: ClusterIP
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: scanner-signature-updates
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
