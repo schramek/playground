@@ -14,19 +14,35 @@ spec:
       labels:
         app: scanner
     spec:
+      initContainers:
+      - name: freshclam-init
+        image: "docker.io/schramek/clamav-scanner:5"
+        imagePullPolicy: IfNotPresent
+        command: ["freshclam", "--config-file=/etc/clamav/freshclam.conf"]
+        volumeMounts:
+        - name: scanner-signature-updates
+          mountPath: /var/lib/clamav
       containers:
-      - name: scanner
+      - name: clamav
         image: "docker.io/schramek/clamav-scanner:5"
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3310
+        securityContext:
+          readOnlyRootFilesystem: true # Don't allow writing definitions to the container filesystem (i.e. OpenShift-mode)
+        volumeMounts:
+        - name: scanner-signature-updates
+          mountPath: /var/lib/clamav
+      - name: freshclam
+        image: "docker.io/schramek/clamav-scanner:5"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c", "while true; do sleep 7200; freshclam --config-file=/etc/clamav/freshclam.conf --daemon-notify=/etc/clamav/clamd.conf; done"]
         volumeMounts:
         - name: scanner-signature-updates
           mountPath: /var/lib/clamav
       volumes:
       - name: scanner-signature-updates
-        persistentVolumeClaim:
-          claimName: scanner-signature-updates
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -39,15 +55,4 @@ spec:
   - port: 3310
     targetPort: 3310
   type: ClusterIP
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: scanner-signature-updates
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
 ---
